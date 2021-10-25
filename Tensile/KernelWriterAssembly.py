@@ -7901,9 +7901,6 @@ class KernelWriterAssembly(KernelWriter):
       return imod
 
   def localReadDo_FGPS(self, kernel, bufferIdx, iui, epsi, uIdx, tP, vIdx_order):
-    #bufferIdx决定vgprValuA_X0_I0和vgprValuA_X1_I0(_X0和_X1),与vIdx_order同步
-    #iui决定_I0和_I1,但是由于kernel["InnerUnroll"]=1限制,iui只=0
-    #新加的vIdx_order参数来控制和关联 本来可以写在一起却分开为两次A/B的lds_read(或多次读取),头两次为0,后两次为1
     tc=tP["tensorChar"]
     if not self.do["LocalRead%s"%tc]: return ""
     imod = Code.Module("LocalReadDo%s"%tc)
@@ -7916,13 +7913,9 @@ class KernelWriterAssembly(KernelWriter):
     # numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]//kernel["VectorWidth"]) = 2
     # tensor index A=0, B=1
     numVectorsPerTile = 1  
-    # numVectorsPerTile是一个Tile需要几次向量读取,现在因为dgemm 4x4(先不考虑sgemm)的这种方法一次只写一句ds_read_b128
-    # 因为每一ds_read_b128之间是有计算的, 所以FGPS强迫numVectorsPerTile=1,然后利用外部vIdx_order来控制向量的第几次读取
-    # 直接从外部输入变量vIdx_order来控制和关联 本来可以写在一起却分开为两次A/B的lds_read(或多次读取),
 
     #print "numVectorsPerTile", numVectorsPerTile
     numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"]) // (blockWidth*4) # bytes/register 
-    ###### 同时ds_read_b128的指令意味着最大化带宽kernel["VectorWidth"] = 2, 所以numReadsPerVector = 1
     
     loopIdx = self.unrollIdx
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
@@ -7936,10 +7929,6 @@ class KernelWriterAssembly(KernelWriter):
         paramList.append(destVgpr)
         paramList.append(vgpr("LocalReadAddr%s"%tc))
         for oIdx in range(0, numOffsets): #1
-            #tP["localReadSwapByteOffset"] = 0, kernel["VectorWidth"] = 2, vIdx*2 = 0,2,4,6
-            #下式 =(kernel["SubGroup0/1]*vIdx*2 + tP["localReadOffset"]) * tP["bpe"]
-            #paramList.append(((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
-            #  + tP["localReadOffset"]) * tP["bpe"] + tP["localReadSwapByteOffset"]) // offsetMultiplier)
             paramList.append(((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx_order*numOffsets+oIdx)*kernel["VectorWidth"] \
             + tP["localReadOffset"]) * tP["bpe"] + tP["localReadSwapByteOffset"]) // offsetMultiplier)
 
