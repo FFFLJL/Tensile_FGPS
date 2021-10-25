@@ -304,7 +304,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addCode(waitCode)
       iterCode.addCode(packCode)
       iterCode.addCode(macIterCode)
-    elif self.scheduleIterAlg == 1: # HHHHHHHH汇编在不修改scheduleIterAlg的情况下 始终=1 
+    elif self.scheduleIterAlg == 1: # HHHHHH
       #import pdb
       #pdb.set_trace()
       # simple algorithm - do half the reads first:
@@ -320,7 +320,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           assert readsThisItem==1, "Scheduler assumes 1 read per item"
           readsToSchedule = readsToSchedule - 1
           if readsToSchedule == 0:
-            break #如果已经没有LocalReadInst的指令了,就结束循环
+            break #If there is no LocalReadInst instruction, end the loop
 
       iterCode.addCode(globalReadCode)
 
@@ -401,7 +401,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if isinstance(waitCode, Code.WaitCnt):
       # Set the waitCount, based on the new iter schedule
       #lgkmcnt = 0
-      lgkmcnt = lesscnt % 10# 迭代的第二次读写,多加1，相当于从1开始
+      lgkmcnt = lesscnt % 10 #
       if lesscnt == 10:
 #        fgpsiterCode = Code.Module()
 #        fgpsiterCode.addCode(localWriteCode)
@@ -656,7 +656,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     vgprmod = (kernel["PrefetchLocalRead"]+1)
     if ValidFGPS:
       kl.append(self.comment("local read b_1"))
-      #noLoadLoop 里面就用 tensorParametersA\B 控制
+      #noLoadLoop using tensorParametersA\B
       kl.append(self.localReadDo_FGPS(kernel, vgprIdx_2, 0, 0, 0, tensorParametersB, 1))
       kl.append(Code.WaitCnt(self.version, 1, -1, "wait for local pre read"))
       kl.append(self.macIter_FGPS(kernel, macMacroIdx, kernel["InnerUnroll"], True ))
@@ -751,7 +751,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Wait"]:
         if ValidFGPS:
           kl.append(Code.WaitCnt(self.version, 1 if (u < kernel["LoopIters"]-1 and kernel["PrefetchLocalRead"]) else 0, \
-            -1, "1 wait for local pre read")) #每个iter的最后一次
+            -1, "1 wait for local pre read")) 
         else:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
               1 if (u < kernel["LoopIters"]-1 and kernel["PrefetchLocalRead"]) else 0, \
@@ -946,9 +946,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     expand = kernel["ExpandPointerSwap"]
     loopCopies = 2 if expand else 1 #loopCopies = 2
-    #前面是的read_lds是处理预取的与tail loop(最后一次循环无关)
-    #下面for循环两次,写那两个Unroll Loop循环体
-    #(只考虑写文本的逻辑,不要考虑生成后代码的逻辑,不要结合最后一次循环,容易思路混乱)
+    #read_lds prefetching
     for lc in range(0, loopCopies):  ######## Unroll Loop 2/2 ########
       finalLoop = not expand or lc==loopCopies-1
       kl.append(self.comment3("Unroll Loop %u/%u - Begin" % (lc+1, loopCopies)))
@@ -1065,8 +1063,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       vgprmod = (kernel["PrefetchLocalRead"]+1)
 
       #localReadDo_FGPS(kernel, vgprIdx_1, iui, 0, 0, tensorParametersA, vIdx_order)
-      # vgprIdx_1 控制vgpr的标号, vIdx_order 来控制和关联偏移 本来可以写在一起却分开为几次A/B的lds_read
-      #  0, 0 没用
+      # vgprIdx_1 controls the index of vgpr, and vIdx_order controls and associates the offset.
       if ValidFGPS:
         #if OrderfirstA:
         kl.append(self.comment("local read b_1"))
@@ -1075,7 +1072,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(Code.WaitCnt(self.version, 1, -1, "wait for local pre read"))
         #kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, waitGlobalRead, waitLocalWrite, waitLocalRead, "wait for local read"))
         kl.append(self.macIter_FGPS(kernel, macMacroIdx, kernel["InnerUnroll"], True ))
-        #macMacroIdx = macMacroIdx + 1 macMacroIdx控制乘加宏块的编号
+        
 
         kl.append(self.comment("local read a_1"))
         kl.append(self.localReadDo_FGPS(kernel, vgprIdx_1, 0, 0, 0, tensorParameters_1, 1))
@@ -1100,7 +1097,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("local read inc b"))
         kl.append(self.localReadInc(kernel, 0, tensorParametersB))
 
-      waitGlobalRead = -1 #直接=-1,就是后面 开始的时候(iter0) 已经没有 GlobalRead 了
+      waitGlobalRead = -1 
       waitLocalWrite = -1
       waitLocalRead  = 1 if kernel["PrefetchLocalRead"] else 0
 
@@ -1111,7 +1108,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       for u in range(0, kernel["LoopIters"]-1): # range(0, 8-1)
         # which loop iteration to reset the LRO,
         # note if PLR=0, isResetLroIter is False for all u
-        isResetLroIter = (u == (kernel["LoopIters"] - kernel["PrefetchLocalRead"] - 1))#倒数第二次iter?
+        isResetLroIter = (u == (kernel["LoopIters"] - kernel["PrefetchLocalRead"] - 1))#
         extraComment = ""
         if isResetLroIter:
           extraComment = " (localWrite + swap local pointers iteration)"
@@ -1149,7 +1146,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                     waitGlobalRead, waitLocalWrite, waitLocalRead, "wait for prior local read local write")
               macMacroIdx = (macMacroIdx+1)%macMacronum
               macIterCode.addCode(self.macIter_FGPS(kernel, macMacroIdx, kernel["InnerUnroll"], True ))
-              if u < kernel["LoopIters"]-3:#因为将ldswrite放在了预取的后两次计算
+              if u < kernel["LoopIters"]-3:#ldswrite is calculated twice after the prefetch
                 subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                             self.perIterGlobalReadCode[u+2], Code.Module(), Code.Module(), waitCode, macIterCode, pack[luIdx])
               else:
@@ -1237,7 +1234,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         pointerCode = Code.Module()
         waitCode = Code.Module()  # may be overwritten (not added to) below
         macIterCode = Code.Module()
-        if isResetLroIter: # ResetLroIter 倒数第二次iter? #不变
+        if isResetLroIter: # ResetLroIter
           if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
             if self.enable["LocalWrite"]:
               # local write for next iter, used to have local writes here
@@ -1274,7 +1271,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             waitLocalWrite = -1
           waitLocalRead  = 1 if isResetLroIter else 0
 
-        else: # not isResetLroIter #不变
+        else: # not isResetLroIter #
           #waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"] and not ValidFGPS else -1
           waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"] else -1
           waitLocalWrite = -1
@@ -1876,7 +1873,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     error = self.overflowedResources
 
     # function signature last since it needs to know how many gprs were actually used
-    # functionSignature就是汇编前面写宏定义和杂七杂八的东西
+    # functionSignature
     kStr = beforeFunctionSignature + self.functionSignature(kernel,ValidFGPS) + afterFunctionSignature
     return (error,kStr)
 
@@ -3042,7 +3039,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         tensorParametersB ) # fileString += ""
     self.stringIdx = 0
     (error, kb) = self.kernelBody( kernel, tensorParametersA, tensorParametersB, ValidFGPS)
-    #kernelBody中调用functionSignature函数会判断参数是否overflowed resources
+    #kernelBody
     fileString += kb
     fileString += self.kernelBodySuffix( kernel, tensorParametersA, \
         tensorParametersB )
