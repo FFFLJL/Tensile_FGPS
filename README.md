@@ -1,3 +1,5 @@
+This repo contains code for the paper [A Fine-grained Prefetching Scheme for DGEMM Kernels on GPU with Auto-tuning Compatibility](https://ieeexplore.ieee.org/document/9820693)
+
 AMD auto-tuning for creating a benchmark-driven backend library for GEMMs, GEMM-like problems (such as batched GEMM), N-dimensional tensor contractions, and anything else that multiplies two multi-dimensional objects together on a GPU.
 
 See [Tensile Wiki](https://github.com/RadeonOpenCompute/Tensile/wiki) for documentation.
